@@ -4789,9 +4789,10 @@ void MegaApiImpl::createChat(bool group, MegaTextChatPeerList *peers, MegaReques
     waiter->notify();
 }
 
-void MegaApiImpl::fetchChats(MegaRequestListener *listener)
+void MegaApiImpl::fetchChats(bool deviceID, MegaRequestListener *listener)
 {
     MegaRequestPrivate *request = new MegaRequestPrivate(MegaRequest::TYPE_CHAT_FETCH, listener);
+    request->setFlag(deviceID);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6023,7 +6024,7 @@ void MegaApiImpl::chatcreate_result(TextChat *chat, error e)
     fireOnRequestFinish(request, megaError);
 }
 
-void MegaApiImpl::chatfetch_result(textchat_vector *chatList, error e)
+void MegaApiImpl::chatfetch_result(const textchat_vector *chatList, handle deviceID, error e)
 {
     MegaError megaError(e);
     if(requestMap.find(client->restag) == requestMap.end()) return;
@@ -6033,7 +6034,8 @@ void MegaApiImpl::chatfetch_result(textchat_vector *chatList, error e)
     if (!e)
     {
         MegaTextChatListPrivate *megaChatList = new MegaTextChatListPrivate(chatList);
-        request->setMegaTextChatList(megaChatList);
+        request->setMegaTextChatList(megaChatList);        
+        request->setNodeHandle(deviceID);
     }
 
     fireOnRequestFinish(request, megaError);
@@ -10553,7 +10555,8 @@ void MegaApiImpl::sendPendingRequests()
         }
         case MegaRequest::TYPE_CHAT_FETCH:
         {
-            client->fetchChats();
+            bool deviceID = request->getFlag();
+            client->fetchChats(deviceID);
             break;
         }
         case MegaRequest::TYPE_CHAT_INVITE:
@@ -13553,7 +13556,7 @@ MegaTextChatListPrivate::MegaTextChatListPrivate()
 
 }
 
-MegaTextChatListPrivate::MegaTextChatListPrivate(textchat_vector *list)
+MegaTextChatListPrivate::MegaTextChatListPrivate(const textchat_vector *list)
 {
     MegaTextChatPrivate *megaChat;
     MegaTextChatPeerListPrivate *chatPeers;

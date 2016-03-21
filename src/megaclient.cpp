@@ -9057,9 +9057,9 @@ void MegaClient::createChat(bool group, const userpriv_vector *userpriv)
     reqs.add(new CommandChatCreate(this, group, userpriv));
 }
 
-void MegaClient::fetchChats()
+void MegaClient::fetchChats(bool deviceID)
 {
-    reqs.add(new CommandChatFetch(this));
+    reqs.add(new CommandChatFetch(this, deviceID));
 }
 
 void MegaClient::inviteToChat(handle chatid, const char *uid, int priv)

@@ -3653,11 +3653,16 @@ void CommandChatCreate::procresult()
     }
 }
 
-CommandChatFetch::CommandChatFetch(MegaClient *client)
+CommandChatFetch::CommandChatFetch(MegaClient *client, bool deviceID)
 {
     this->client = client;
+    this->deviceID = deviceID;
 
     cmd("mcf");
+    if (deviceID)
+    {
+        arg("d", 1);
+    }
 
     tag = client->reqtag;
 }
@@ -3666,152 +3671,180 @@ void CommandChatFetch::procresult()
 {
     if (client->json.isnumeric())
     {
-        client->app->chatfetch_result(NULL, (error)client->json.getint());
+        client->app->chatfetch_result(NULL, UNDEF, (error)client->json.getint());
     }
     else
     {
-        if(client->json.getnameid() != 'c')
-        {
-            client->app->chatfetch_result(NULL, API_EINTERNAL);
-            return;
-        }
-
-        if(!client->json.enterarray())
-        {
-            client->app->chatfetch_result(NULL, API_EINTERNAL);
-            return;
-        }
-
-        // list of chats
-        textchat_vector *chatlist = new textchat_vector;
         error e = API_OK;
+        textchat_vector *chatlist = NULL;   // list of chats where the user participates
+        handle deviceID = UNDEF;            // unique user-specific device ID
+        handle sn = UNDEF;                  // sequence-number
 
-        while(client->json.enterobject() && !e)   // while there are more chats to read...
+        for (;;)
         {
-            handle chatid = UNDEF;
-            privilege_t priv = PRIV_UNKNOWN;
-            string url;
-            int shard = -1;
-            userpriv_vector *userpriv = NULL;
-            bool group = false;
-
-            bool readingChat = true;
-            while(readingChat) // read the chat information
+            switch (client->json.getnameid())
             {
-                switch (client->json.getnameid())
-                {
-                    case MAKENAMEID2('i','d'):
-                        chatid = client->json.gethandle(MegaClient::CHATHANDLE);
-                        break;
+                case 'c':
+                    if(!client->json.enterarray())
+                    {
+                        return client->app->chatfetch_result(NULL, UNDEF, API_EINTERNAL);
+                    }
 
-                    case 'p':
-                        priv = (privilege_t) client->json.getint();
-                        break;
+                    chatlist = new textchat_vector;
 
-                    case MAKENAMEID3('u','r','l'):
-                        client->json.storeobject(&url);
-                        break;
+                    while(client->json.enterobject() && !e)   // while there are more chats to read...
+                    {
+                        handle chatid = UNDEF;
+                        privilege_t priv = PRIV_UNKNOWN;
+                        string url;
+                        int shard = -1;
+                        userpriv_vector *userpriv = NULL;
+                        bool group = false;
 
-                    case MAKENAMEID2('c','s'):
-                        shard = client->json.getint();
-                        break;
-
-                    case 'u':   // list of users participating in the chat (+privileges)
-                        userpriv = client->readuserpriv(&client->json);
-                        break;
-
-                    case 'g':
-                        group = client->json.getint();
-                        break;
-
-                    case EOO:
-                        if (chatid != UNDEF && priv != PRIV_UNKNOWN && !url.empty()
-                                && shard != -1 && userpriv)
+                        bool readingChat = true;
+                        while(readingChat) // read the chat information
                         {
-                            TextChat *chat = new TextChat();
-                            chat->id = chatid;
-                            chat->priv = priv;
-                            chat->url = url;
-                            chat->shard = shard;
-                            chat->group = group;
-
-                            // remove yourself from the list of users (only peers matter)
-                            userpriv_vector::iterator upvit;
-                            for (upvit = userpriv->begin(); upvit != userpriv->end(); upvit++)
+                            switch (client->json.getnameid())
                             {
-                                if (upvit->first == client->me)
-                                {
-                                    userpriv->erase(upvit);
-                                    if (userpriv->empty())
+                                case MAKENAMEID2('i','d'):
+                                    chatid = client->json.gethandle(MegaClient::CHATHANDLE);
+                                    break;
+
+                                case 'p':
+                                    priv = (privilege_t) client->json.getint();
+                                    break;
+
+                                case MAKENAMEID3('u','r','l'):
+                                    client->json.storeobject(&url);
+                                    break;
+
+                                case MAKENAMEID2('c','s'):
+                                    shard = client->json.getint();
+                                    break;
+
+                                case 'u':   // list of users participating in the chat (+privileges)
+                                    userpriv = client->readuserpriv(&client->json);
+                                    break;
+
+                                case 'g':
+                                    group = client->json.getint();
+                                    break;
+
+                                case EOO:
+                                    if (chatid != UNDEF && priv != PRIV_UNKNOWN && !url.empty()
+                                            && shard != -1 && userpriv)
                                     {
+                                        TextChat *chat = new TextChat();
+                                        chat->id = chatid;
+                                        chat->priv = priv;
+                                        chat->url = url;
+                                        chat->shard = shard;
+                                        chat->group = group;
+
+                                        // remove yourself from the list of users (only peers matter)
+                                        userpriv_vector::iterator upvit;
+                                        for (upvit = userpriv->begin(); upvit != userpriv->end(); upvit++)
+                                        {
+                                            if (upvit->first == client->me)
+                                            {
+                                                userpriv->erase(upvit);
+                                                if (userpriv->empty())
+                                                {
+                                                    delete userpriv;
+                                                    userpriv = NULL;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                        chat->userpriv = userpriv;
+
+                                        chatlist->push_back(chat);
+                                    }
+                                    else
+                                    {
+                                        e = API_EINTERNAL;
+                                    }
+                                    readingChat = false;
+                                    break;
+
+                                default:
+                                    if (!client->json.storeobject())
+                                    {
+                                        e = API_EINTERNAL;
+                                        readingChat = false;
                                         delete userpriv;
                                         userpriv = NULL;
                                     }
                                     break;
-                                }
                             }
-                            chat->userpriv = userpriv;
-
-                            chatlist->push_back(chat);
                         }
-                        else
+                        client->json.leaveobject();
+                    }
+                    client->json.leavearray();
+
+                    if (e)  // during chatlist processing...
+                    {
+                        // clean allocated memory for individual chats and the list
+                        if (chatlist)
                         {
-                            e = API_EINTERNAL;
+                            for(textchat_vector::iterator it = chatlist->begin(); it != chatlist->end(); it++)
+                            {
+                                delete *it;
+                            }
+                            delete chatlist;
                         }
-                        readingChat = false;
-                        break;
 
-                    default:
-                        if (!client->json.storeobject())
+                        return client->app->chatfetch_result(NULL, UNDEF, e);
+                    }
+
+                    break;
+
+                case 'd':
+                    deviceID = client->json.getint();
+                    break;
+
+                case MAKENAMEID2('s','n'):
+                    if (client->json.storebinary((byte*)&sn, sizeof sn) != sizeof sn)
+                    {
+                        e = API_EINTERNAL;
+                        break;
+                    }
+
+                    // the 'scsn' should be discarded if alrready have one from fetchnodes
+                    if (!*client->scsn)
+                    {
+                        Base64::btoa((byte*)&sn, sizeof sn, client->scsn);
+                    }
+                    break;
+
+                case EOO:
+                    if (e || (this->deviceID && (deviceID == UNDEF)) )
+                    {
+                        // clean allocated memory for individual chats and the list
+                        if (chatlist)
                         {
-                            e = API_EINTERNAL;
-                            readingChat = false;
-                            delete userpriv;
-                            userpriv = NULL;
+                            for(textchat_vector::iterator it = chatlist->begin(); it != chatlist->end(); it++)
+                            {
+                                delete *it;
+                            }
+                            delete chatlist;
                         }
-                        break;
-                }
-            }
-            client->json.leaveobject();
-        }
-        client->json.leavearray();
 
-        if(client->json.getnameid() != MAKENAMEID2('s','n'))
-        {
-            e = API_EINTERNAL;
-        }
-        else    // sequence number received
-        {
-            handle t;
+                        return client->app->chatfetch_result(NULL, UNDEF, e);
+                    }
+                    else
+                    {
+                        return client->app->chatfetch_result(chatlist, deviceID, API_OK);
+                    }
 
-            if (client->json.storebinary((byte*)&t, sizeof t) != sizeof t)
-            {
-                e = API_EINTERNAL;
-            }
-
-            // the 'scsn' should be discarded if alrready have one from fetchnodes
-            if (!*client->scsn)
-            {
-                Base64::btoa((byte*)&t, sizeof t, client->scsn);
+                default:
+                    if (!client->json.storeobject())
+                    {
+                        e = API_EINTERNAL;
+                    }
+                    break;
             }
         }
-
-        if (!e)
-        {
-            client->app->chatfetch_result(chatlist, API_OK);
-        }
-        else
-        {
-            client->app->chatfetch_result(NULL, e);
-        }
-
-        // clean allocated memory for individual chats and the list
-        textchat_vector::iterator it;
-        for(it = chatlist->begin(); it != chatlist->end(); it++)
-        {
-            delete *it;
-        }
-        delete chatlist;
     }
 }
 

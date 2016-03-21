@@ -158,7 +158,7 @@ public:
     void getContactRequest(bool outgoing, int expectedSize = 1);
 
 #ifdef ENABLE_CHAT
-    void fetchChats(int timeout = maxTimeout);
+    void fetchChats(bool deviceID = false, int timeout = maxTimeout);
     void createChat(bool group, MegaTextChatPeerList *peers, int timeout = maxTimeout);
 #endif
 

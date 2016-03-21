@@ -294,7 +294,7 @@ public:
     void createChat(bool group, const userpriv_vector *userpriv);
 
     // fetch the list of chats
-    void fetchChats();
+    void fetchChats(bool deviceID);
 
     // invite a user to a chat
     void inviteToChat(handle chatid, const char *uid, int priv);

@@ -167,7 +167,7 @@ struct MEGA_API MegaApp
 #ifdef ENABLE_CHAT
     // chat-related command's result
     virtual void chatcreate_result(TextChat *, error) { }
-    virtual void chatfetch_result(textchat_vector *, error) { }
+    virtual void chatfetch_result(const textchat_vector *, handle, error) { }
     virtual void chatinvite_result(error) { }
     virtual void chatremove_result(error) { }
     virtual void chaturl_result(string*, error) { }

@@ -617,10 +617,11 @@ public:
 class MEGA_API CommandChatFetch : public Command
 {
     MegaClient *client;
+    bool deviceID;
 public:
     void procresult();
 
-    CommandChatFetch(MegaClient*);
+    CommandChatFetch(MegaClient*, bool);
 };
 
 class MEGA_API CommandChatInvite : public Command

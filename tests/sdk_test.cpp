@@ -328,11 +328,11 @@ void SdkTest::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
     }
 }
 
-void SdkTest::fetchChats(int timeout)
+void SdkTest::fetchChats(bool deviceID, int timeout)
 {
     responseReceived = false;
 
-    megaApi->fetchChats();
+    megaApi->fetchChats(deviceID);
 
     waitForResponse(&responseReceived, timeout);
     if (timeout)
@@ -1630,7 +1630,7 @@ TEST_F(SdkTest, SdkTestChat)
 
     // --- Fetch list of available chats ---
 
-    ASSERT_NO_FATAL_FAILURE( fetchChats() );
+    ASSERT_NO_FATAL_FAILURE( fetchChats(true) );    // first time fetching chats: ask for device ID
     uint numChats = chats->size();      // permanent chats cannot be deleted, so they're kept forever
 
 

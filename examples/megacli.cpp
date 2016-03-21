@@ -2995,7 +2995,23 @@ static void process_line(char* l)
 #ifdef ENABLE_CHAT
                     else if (words[0] == "chatf")
                     {
-                        client->fetchChats();
+                        bool deviceID = false;
+
+                        unsigned wordscount = words.size();
+                        if (wordscount > 1)
+                        {
+                            if (wordscount == 2)
+                            {
+                                deviceID = atoi(words[1].c_str());
+                            }
+                            else
+                            {
+                                cout << "      chatf [0|1]" << endl;
+                                return;
+                            }
+                        }
+
+                        client->fetchChats(deviceID);
                         return;
                     }
                     else if (words[0] == "chatc")

@@ -1673,6 +1673,7 @@ class MegaRequest
          * - MegaApi::createFolder - Returns the handle of the new folder
          * - MegaApi::copyNode - Returns the handle of the new node
          * - MegaApi::importFileLink - Returns the handle of the new node
+         * - MegaApi::fetchChats - Returns the unique user-specific device ID (if requested)
          *
          * @return Handle of a node related to the request
          */
@@ -1990,6 +1991,7 @@ class MegaRequest
          * - MegaApi::createChat - Creates a chat for one or more participants
          * - MegaApi::fetchnodes - Return true if logged in into a folder and the provided key is invalid.
          * - MegaApi::getPublicNode - Return true if the provided key along the link is invalid.
+         * - MegaApi::fetchNodes - Return true if the device ID is requested
          *
          * @return Flag related to the request
          */
@@ -7331,10 +7333,12 @@ class MegaApi
          * Valid data in the MegaRequest object received in onRequestFinish when the error code
          * is MegaError::API_OK:
          * - MegaRequest::getMegaTextChatList - Returns the list of chats
+         * - MegaRequest::getNodeHandle - Returns the unique user-specific device ID
          *
          * @param listener MegaRequestListener to track this request
+         * @param deviceID Indicates if a unique user-specific device identifier should be requested
          */
-        void fetchChats(MegaRequestListener *listener = NULL);
+        void fetchChats(bool deviceID = false, MegaRequestListener *listener = NULL);
 
         /**
          * @brief Adds a user to an existing chat. To do this you must have the
