@@ -2025,6 +2025,8 @@ CommandPutUA::CommandPutUA(MegaClient* client, const char *an, const byte* av, u
     }
     endarray();
 
+
+
     tag = ctag;
 }
 
@@ -2061,8 +2063,10 @@ void CommandPutUA::procresult()
         else
         {
             User *u = client->ownuser();
-            u->setattr(&an, &av, &v);
-            client->notifyuser(u);
+            bool skipcallback = u->setattr(&an, &av, &v);
+
+            client->notifyuser(u, skipcallback);
+
             client->app->putua_result(API_OK);
         }
     }
@@ -2130,9 +2134,10 @@ void CommandGetUA::procresult()
                     // if there's no avatar, the value is "none" (not Base64 encoded)
                     if (u && an == "+a" && !strncmp(ptr, "none", 4))
                     {
-                        u->setattr(&an, NULL, &v);
+                        bool changed = u->setattr(&an, NULL, &v);
+                        client->notifyuser(u, !changed);
+
                         client->app->getua_result(API_ENOENT);
-                        client->notifyuser(u);
                         return;
                     }
 
@@ -2159,6 +2164,7 @@ void CommandGetUA::procresult()
                         return;
                     }
 
+                    bool skipcallback = false;
                     switch (scope)
                     {
                         case '*':   // private
@@ -2174,7 +2180,7 @@ void CommandGetUA::procresult()
 
                             // store the value for private user attributes (decrypted version of serialized TLV)
                             string *tlvString = tlvRecords->tlvRecordsToContainer(&client->key);
-                            u->setattr(&an, tlvString, &v);   // update version, needed for healing
+                            skipcallback = u->setattr(&an, tlvString, &v);   // update version, needed for healing
                             delete tlvString;
                             client->app->getua_result(tlvRecords);
                             delete tlvRecords;
@@ -2183,7 +2189,7 @@ void CommandGetUA::procresult()
 
                         case '+':   // public
 
-                            u->setattr(&an, &av, &v);
+                            skipcallback = u->setattr(&an, &av, &v);
                             client->app->getua_result((byte*) av.data(), av.size());
 #ifdef  ENABLE_CHAT
                             if (client->fetchingkeys && u->userhandle == client->me && an == "+sigPubk")
@@ -2195,7 +2201,7 @@ void CommandGetUA::procresult()
 
                         case '#':   // protected
 
-                            u->setattr(&an, &av, &v);
+                            skipcallback = u->setattr(&an, &av, &v);
                             client->app->getua_result((byte*) av.data(), av.size());
                             break;
 
@@ -2212,12 +2218,12 @@ void CommandGetUA::procresult()
                                 return;
                             }
 
-                            u->setattr(&an, &av, &v);
+                            skipcallback = u->setattr(&an, &av, &v);
                             client->app->getua_result((byte*) av.data(), av.size());
                             break;
                     }
 
-                    client->notifyuser(u);
+                    client->notifyuser(u, skipcallback);
                     return;
                 }
 

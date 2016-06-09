@@ -211,8 +211,10 @@ User* User::unserialize(MegaClient* client, string* d)
     return u;
 }
 
-void User::setattr(string *an, string *av, string *v)
+bool User::setattr(string *an, string *av, string *v)
 {
+    bool initialized = (getattr(*an) && !isattrvalid(*an)) || !getattr(*an);
+
     setChanged(an->c_str());
 
     if (*an != "+a") // avatar is saved to disc
@@ -221,6 +223,8 @@ void User::setattr(string *an, string *av, string *v)
     }
 
     attrsv[*an] = *v;
+
+    return initialized;
 }
 
 void User::invalidateattr(string an)

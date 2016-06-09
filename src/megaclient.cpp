@@ -3762,20 +3762,29 @@ void MegaClient::sc_userattr()
                 {
                     // invalidate only out-of-date attributes
                     const string *cacheduav;
+                    bool notify = false;
                     for (itua = ualist.begin(), ituav = uavlist.begin();
                          itua != ualist.end();
                          itua++, ituav++)
                     {
-                        if ((cacheduav = u->getattrversion(*itua)) && (*cacheduav != *ituav))
+                        if (!u->getattr(*itua))
+                        {
+                            notify = true;
+                        }
+                        else if ((cacheduav = u->getattrversion(*itua)) && (*cacheduav != *ituav))
                         {
                             u->invalidateattr(*itua);
+                            notify = true;
                             if (*itua == "*keyring")
                             {
                                 resetKeyring();
                             }
                         }
                     }
-                    notifyuser(u);
+                    if (notify)
+                    {
+                        notifyuser(u);
+                    }
                 }
                 return;
 
@@ -4499,6 +4508,22 @@ void MegaClient::notifypurge(void)
         pcrnotify.clear();
     }
 
+    // skip notify users that haven't really changed, but the value has been fetched (and needs to be saved into cache)
+    t = usernotify.size();
+    for (i = t - 1; i >= 0; i--)
+    {
+        User *u = usernotify[i];
+
+        if (u->skipcallback)
+        {
+            usernotify.erase(usernotify.begin() + i);
+
+            u->notified = false;
+            u->skipcallback = false;
+            memset(&(u->changed), 0, sizeof(u->changed));
+        }
+    }
+
     // users are never deleted
     if ((t = usernotify.size()))
     {
@@ -4512,6 +4537,7 @@ void MegaClient::notifypurge(void)
             User *u = usernotify[i];
 
             u->notified = false;
+            u->skipcallback = false;
             memset(&(u->changed), 0, sizeof(u->changed));
         }
 
@@ -6763,12 +6789,22 @@ void MegaClient::filecachedel(File *file)
 }
 
 // queue user for notification
-void MegaClient::notifyuser(User* u)
+void MegaClient::notifyuser(User* u, bool skipcallback)
 {
     if (!u->notified)
     {
         u->notified = true;
         usernotify.push_back(u);
+
+        u->skipcallback = skipcallback;
+    }
+    else
+    {
+        // user notified in the past, but callback should prevail if needed
+        if (u->skipcallback && skipcallback == false)
+        {
+            u->skipcallback = false;
+        }
     }
 }
 

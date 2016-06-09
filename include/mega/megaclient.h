@@ -636,7 +636,7 @@ public:
     bool readusers(JSON*);
 
     user_vector usernotify;
-    void notifyuser(User*);
+    void notifyuser(User*, bool skipcallback = false);
 
     pcr_vector pcrnotify;
     void notifypcr(PendingContactRequest*);

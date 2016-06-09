@@ -64,6 +64,8 @@ struct MEGA_API User : public Cachable
         bool email : 1;
     } changed;
 
+    bool skipcallback;
+
     // user's public key
     AsymmCipher pubk;
     int pubkrequested;
@@ -85,7 +87,7 @@ public:
     static User* unserialize(class MegaClient *, string*);
 
     // attribute methods: set/get/invalidate...
-    void setattr(string *an, string *av, string *v);
+    bool setattr(string *an, string *av, string *v);
     const string *getattr(string an);
     const string *getattrversion(string an);
     void invalidateattr(string an);
